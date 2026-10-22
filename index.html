@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transcripteur Audio IA - Longue Durée</title>
+    <title>Transcripteur Audio IA (Gratuit via Groq)</title>
     <style>
         :root {
             --bg-color: #f7f9fc;
             --container-bg: #ffffff;
-            --primary: #4A90E2;
-            --primary-hover: #357ABD;
+            --primary: #f55036; /* Couleur style Groq */
+            --primary-hover: #d43d26;
             --text-main: #333333;
             --text-muted: #666666;
             --border: #e1e4e8;
@@ -67,7 +67,7 @@
         }
         .upload-area:hover {
             border-color: var(--primary);
-            background-color: #f0f6ff;
+            background-color: #fff8f7;
         }
         button {
             background-color: var(--primary);
@@ -80,9 +80,10 @@
             width: 100%;
             font-weight: 600;
             margin-top: 20px;
+            transition: background-color 0.2s;
         }
         button:hover { background-color: var(--primary-hover); }
-        button:disabled { background-color: #a0c4eb; cursor: not-allowed; }
+        button:disabled { background-color: #f7a99c; cursor: not-allowed; }
         
         textarea {
             width: 100%;
@@ -103,7 +104,7 @@
             margin-top: 20px;
             padding: 15px;
             border-radius: 8px;
-            background-color: #e8f2fc;
+            background-color: #fff1ef;
             color: var(--primary);
             font-weight: 500;
         }
@@ -118,25 +119,25 @@
 <body>
 
     <div class="container">
-        <h1>🎙️ Transcripteur IA (Longue durée)</h1>
-        <p>Découpe automatiquement les gros fichiers (1h et +) pour contourner la limite de 25 Mo.</p>
+        <h1>🎙️ Transcripteur IA (Gratuit & Illimité)</h1>
+        <p>Propulsé par le modèle Whisper via Groq. Découpe automatique pour les longs audios.</p>
 
         <div class="form-group">
-            <label for="apiKey">Clé API OpenAI :</label>
-            <input type="password" id="apiKey" placeholder="sk-...">
+            <label for="apiKey">Clé API Groq (Gratuite) :</label>
+            <input type="password" id="apiKey" placeholder="gsk_...">
         </div>
 
         <div class="upload-area" id="dropZone" onclick="document.getElementById('audioFile').click()">
             <input type="file" id="audioFile" accept="audio/*, video/*" style="display:none">
             <div style="font-size: 24px;">📁</div>
-            <p id="fileName">Clique ici pour ajouter ton fichier (sans limite de durée)</p>
+            <p id="fileName">Clique ici pour ajouter ton fichier (Espagnol, Français, etc.)</p>
         </div>
 
         <button id="transcribeBtn" disabled>Lancer la transcription</button>
         
         <div id="statusInfo"></div>
         
-        <textarea id="result" readonly placeholder="La transcription s'affichera ici au fur et à mesure..."></textarea>
+        <textarea id="result" readonly placeholder="La transcription s'affichera ici..."></textarea>
         
         <button id="downloadBtn" class="secondary-btn">⬇️ Télécharger le texte (.txt)</button>
     </div>
@@ -160,7 +161,6 @@
             }
         });
 
-        // Fonction pour convertir un morceau d'audio en fichier WAV (format non compressé facile à manipuler en JS)
         function audioBufferToWavBlob(buffer, startSample, lengthInSamples) {
             const numOfChan = buffer.numberOfChannels;
             const sampleRate = buffer.sampleRate;
@@ -182,7 +182,7 @@
             writeString(view, 8, 'WAVE');
             writeString(view, 12, 'fmt ');
             view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true); // PCM
+            view.setUint16(20, 1, true);
             view.setUint16(22, numOfChan, true);
             view.setUint32(24, sampleRate, true);
             view.setUint32(28, sampleRate * blockAlign, true);
@@ -211,7 +211,7 @@
 
         transcribeBtn.addEventListener('click', async () => {
             const apiKey = apiKeyInput.value.trim();
-            if (!apiKey) { alert("Il te faut une clé API OpenAI !"); return; }
+            if (!apiKey) { alert("Il te faut ta clé API Groq (commençant par gsk_) !"); return; }
             if (!selectedFile) return;
 
             transcribeBtn.style.display = 'none';
@@ -221,26 +221,24 @@
             resultArea.value = "";
 
             try {
-                // 1. Lire le fichier
-                statusInfo.innerHTML = "⏳ Étape 1/3 : Lecture de l'audio (cela peut figer la page quelques secondes)...";
-                await new Promise(r => setTimeout(r, 50)); // Laisser le navigateur afficher le texte
+                statusInfo.innerHTML = "⏳ Étape 1/3 : Lecture du fichier audio...";
+                await new Promise(r => setTimeout(r, 50));
 
                 const arrayBuffer = await selectedFile.arrayBuffer();
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
-                statusInfo.innerHTML = "⏳ Étape 2/3 : Décodage de l'audio...";
+                statusInfo.innerHTML = "⏳ Étape 2/3 : Décodage et découpage de l'audio...";
                 const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-                // 2. Préparer les morceaux (Chunks de 2 minutes)
-                const CHUNK_DURATION_SEC = 120; // 2 minutes par fichier pour être sûr de rester < 25Mo
+                // Morceaux de 3 minutes (180s)
+                const CHUNK_DURATION_SEC = 180;
                 const totalDuration = audioBuffer.duration;
                 const totalChunks = Math.ceil(totalDuration / CHUNK_DURATION_SEC);
                 
-                statusInfo.innerHTML = `🚀 Étape 3/3 : Découpage et transcription de ${totalChunks} morceaux...`;
+                statusInfo.innerHTML = `🚀 Étape 3/3 : Traitement rapide de ${totalChunks} morceau(x) via Groq...`;
 
-                // 3. Traiter chaque morceau un par un
                 for (let i = 0; i < totalChunks; i++) {
-                    statusInfo.innerHTML = `🎙️ Envoi du morceau ${i + 1} sur ${totalChunks}...`;
+                    statusInfo.innerHTML = `⚡ Transcription du morceau ${i + 1} sur ${totalChunks}...`;
                     await new Promise(r => setTimeout(r, 50));
 
                     const startSample = i * CHUNK_DURATION_SEC * audioBuffer.sampleRate;
@@ -249,15 +247,14 @@
                         lengthInSamples = audioBuffer.length - startSample;
                     }
 
-                    // Créer le petit fichier WAV
                     const chunkBlob = audioBufferToWavBlob(audioBuffer, startSample, lengthInSamples);
 
-                    // L'envoyer à OpenAI
                     const formData = new FormData();
                     formData.append('file', chunkBlob, `partie_${i}.wav`);
-                    formData.append('model', 'whisper-1');
+                    formData.append('model', 'whisper-large-v3-turbo');
 
-                    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+                    // API Groq
+                    const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
                         method: 'POST',
                         headers: { 'Authorization': `Bearer ${apiKey}` },
                         body: formData
@@ -267,9 +264,9 @@
 
                     if (response.ok) {
                         resultArea.value += data.text + " ";
-                        resultArea.scrollTop = resultArea.scrollHeight; // Descendre automatiquement l'ascenseur
+                        resultArea.scrollTop = resultArea.scrollHeight;
                     } else {
-                        throw new Error(data.error?.message || "Erreur de l'API");
+                        throw new Error(data.error?.message || "Erreur lors de la réponse de Groq");
                     }
                 }
 
@@ -292,7 +289,7 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = 'Transcription_Complete.txt';
+            a.download = 'Transcription_Groq.txt';
             a.click();
             URL.revokeObjectURL(url);
         });
