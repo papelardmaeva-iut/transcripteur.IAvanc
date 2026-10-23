@@ -247,7 +247,7 @@
                 const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
                 // Découpage en morceaux de 3 minutes (180 secondes)
-                const CHUNK_DURATION_SEC = 60;
+                const CHUNK_DURATION_SEC = 120;
                 const totalDuration = audioBuffer.duration;
                 const totalChunks = Math.ceil(totalDuration / CHUNK_DURATION_SEC);
                 
